@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fabric.js Advanced Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
+    <style>
+        /* General Body Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            background-color: #f4f4f9;
+            color: #333;
+            height: 100vh;
+        }
+    
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            width: 300px;
+            max-height: 100%; 
+            overflow-y: auto; 
+        }
+    
+        .button-container h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #555;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 5px;
+        }
+    
+        .button-container button {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border: none;
+            background-color: #4caf50;
+            color: white;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+    
+        .button-container button:hover {
+            background-color: #45a049;
+        }
+    
+        .button-container label {
+            font-size: 14px;
+            margin-bottom: 5px;
+            display: block;
+            color: #333;
+        }
+    
+        .button-container input,
+        .button-container select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+       
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            border: 2px solid #ddd;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin: 20px;
+        }
+    
+        canvas {
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            max-width: 100%;
+            max-height: 100%;
+        }
+    
+        /* Scrollbar Styling */
+        .button-container::-webkit-scrollbar {
+            width: 8px;
+        }
+    
+        .button-container::-webkit-scrollbar-thumb {
+            background-color: #ccc;
+            border-radius: 5px;
+        }
+    
+        .button-container::-webkit-scrollbar-thumb:hover {
+            background-color: #bbb;
+        }
+    
+        .button-container::-webkit-scrollbar-track {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+    </style>
+    
+</head>
+<body>
+    <div class="button-container">
+        <h3>Shapes</h3>
+        <button onclick="addRectangle()">Add Rectangle</button>
+        <button onclick="addCircle()">Add Circle</button>
+        <button onclick="addSquare()">Add Square</button>
+        <button onclick="addEllipse()">Add Ellipse</button>
+        <label>Shape Color: <input type="color" id="shapeColor" value="#FF0000"></label>
+        <button onclick="updateShapeColor()">Change Shape Color</button>
+        <h3>Text</h3>
+        <button onclick="addText()">Add Text</button>
+        <label>Font Size: <input type="number" id="fontSize" value="24"></label>
+        <label>Font Type: 
+            <select id="fontType">
+                <option value="Arial">Arial</option>
+                <option value="Helvetica">Helvetica</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Courier New">Courier New</option>
+            </select>
+        </label>
+        <label>Font Color: <input type="color" id="fontColor" value="#000000"></label>
+        <button onclick="updateFontColor()">Change Font Color</button>
+        <button onclick="toggleBold()">Bold</button>
+        <button onclick="toggleItalic()">Italic</button>
+        <button onclick="toggleUnderline()">Underline</button>
+        <h3>Drawing</h3>
+        <button onclick="enablePencil()">Pencil</button>
+        <button onclick="enableBrush()">Paint Brush</button>
+        <button onclick="enableMarker()">Marker</button>
+        <button onclick="disableDrawing()">Disable Drawing</button>
+        <h3>Actions</h3>
+        <button onclick="deleteSelectedItem()">Delete Selected Item</button>
+        <button onclick="groupSelectedItems()">Group Selected Items</button>
+        <button onclick="ungroupSelectedItems()">Ungroup Selected Items</button>
+        <button onclick="bringToFront()">Bring To Front</button>
+        <button onclick="sendToBack()">Send To Back</button>
+        <input type="file" id="fileInput" accept="image/*" />
+        <button onclick="undo()">Undo</button>
+        <button onclick="redo()">Redo</button>
+        <button onclick="downloadPNG()">Download PNG</button>
+    </div>
+    <div id="canvas-container">
+        <canvas id="fabricCanvas" width="900" height="509"></canvas>
+    </div>
+    <script>
+        const canvas = new fabric.Canvas('fabricCanvas');
+        const state = [];
+        let activeText;
+        let activeShape;
+        let mods = 0;
+        let currentStateIndex = -1;
+
+        function addRectangle() {
+            const rect = new fabric.Rect({
+                left: 100,
+                top: 100,
+                fill: document.getElementById('shapeColor').value,
+                width: 60,
+                height: 70
+            });
+            canvas.add(rect);
+            updateModifications();
+        }
+
+        function addCircle() {
+            const circle = new fabric.Circle({
+                left: 200,
+                top: 100,
+                fill: document.getElementById('shapeColor').value,
+                radius: 50
+            });
+            canvas.add(circle);
+            updateModifications();
+        }
+
+        function addSquare() {
+            const square = new fabric.Rect({
+                left: 300,
+                top: 100,
+                fill: document.getElementById('shapeColor').value,
+                width: 60,
+                height: 60
+            });
+            canvas.add(square);
+            updateModifications();
+        }
+
+        function addEllipse() {
+            const ellipse = new fabric.Ellipse({
+                left: 400,
+                top: 100,
+                fill: document.getElementById('shapeColor').value,
+                rx: 70,
+                ry: 50
+            });
+            canvas.add(ellipse);
+            updateModifications();
+        }
+
+        function addText() {
+            const text = new fabric.IText('Edit me!', {
+                left: 100,
+                top: 300,
+                fill: document.getElementById('fontColor').value,
+                fontSize: parseInt(document.getElementById('fontSize').value, 10),
+                fontFamily: document.getElementById('fontType').value
+            });
+            canvas.add(text);
+            canvas.setActiveObject(text);
+            activeText = text;
+            updateModifications();
+        }
+
+        function updateTextProperties() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject && activeObject.type === 'i-text') {
+                activeObject.set({
+                    fontSize: parseInt(document.getElementById('fontSize').value, 10),
+                    fontFamily: document.getElementById('fontType').value,
+                    fill: document.getElementById('fontColor').value
+                });
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function toggleBold() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject && activeObject.type === 'i-text') {
+                activeObject.set('fontWeight', activeObject.fontWeight === 'bold' ? 'normal' : 'bold');
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function toggleItalic() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject && activeObject.type === 'i-text') {
+                activeObject.set('fontStyle', activeObject.fontStyle === 'italic' ? 'normal' : 'italic');
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function toggleUnderline() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject && activeObject.type === 'i-text') {
+                activeObject.set('underline', !activeObject.underline);
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function updateShapeColor() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject && activeObject.type !== 'i-text') {
+                activeObject.set('fill', document.getElementById('shapeColor').value);
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function updateFontColor() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject && activeObject.type !== 'i-text') {
+                activeObject.set('fill', document.getElementById('fontColor').value);
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function enablePencil() {
+            canvas.isDrawingMode = true;
+            canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+            canvas.freeDrawingBrush.color = document.getElementById('shapeColor').value;
+            canvas.freeDrawingBrush.width = 2; 
+        }
+
+        function enableBrush() {
+            canvas.isDrawingMode = true;
+            canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+            canvas.freeDrawingBrush.color = document.getElementById('shapeColor').value;
+            canvas.freeDrawingBrush.width = 10; 
+        }
+
+        function enableMarker() {
+            canvas.isDrawingMode = true;
+            canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+            canvas.freeDrawingBrush.color = document.getElementById('shapeColor').value;
+            canvas.freeDrawingBrush.width = 5; 
+        }
+
+        function disableDrawing() {
+            canvas.isDrawingMode = false;
+        }
+
+        function deleteSelectedItem() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) {
+                canvas.remove(activeObject);
+                updateModifications();
+            }
+        }
+
+        function groupSelectedItems() {
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length > 1) {
+                const group = new fabric.Group(activeObjects);
+                canvas.add(group);
+                canvas.discardActiveObject();
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function ungroupSelectedItems() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject && activeObject.type === 'group') {
+                const items = activeObject._objects;
+                activeObject._restoreObjectsState();
+                canvas.remove(activeObject);
+                canvas.renderAll();
+                items.forEach(item => canvas.add(item));
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function bringToFront() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) {
+                activeObject.bringToFront();
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+
+        function sendToBack() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) {
+                activeObject.sendToBack();
+                canvas.renderAll();
+                updateModifications();
+            }
+        }
+        // Function to handle file input change
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (f) => {
+                    fabric.Image.fromURL(f.target.result, (img) => {
+                        img.scaleToWidth(200); // Scale image width to 200px
+                        img.scaleToHeight(200); // Scale image height to 200px
+                        canvas.add(img); // Add image to the canvas
+                        canvas.renderAll();
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function undo() {
+            if (mods < state.length - 1) {
+                canvas.loadFromJSON(state[state.length - 1 - mods - 1]);
+                canvas.renderAll();
+                mods += 1;
+                console.log('Undo');
+            }
+        }
+
+        function redo() {
+            if (mods > 0) {
+                canvas.loadFromJSON(state[state.length - 1 - mods + 1]);
+                canvas.renderAll();
+                mods -= 1;
+                console.log('Redo');
+            }
+        }
+
+        function updateModifications() {
+            if (mods < state.length) {
+                state.length = mods + 1;
+            }
+            state.push(JSON.stringify(canvas));
+            mods = 0;
+        }
+
+        canvas.on('object:modified', updateModifications);
+        canvas.on('object:added', updateModifications);
+
+        canvas.on('object:selected', function(e) {
+            const activeObject = e.target;
+            if (activeObject.type !== 'i-text') {
+                activeShape = activeObject;
+                activeText = null;
+            } else {
+                activeText = activeObject;
+                activeShape = null;
+            }
+        });
+
+        function manageZOrder(object) { if (isFirstElement) { isFirstElement = false; } else { object.bringToFront(); } }
+
+        canvas.on('selection:cleared', function() {
+            activeShape = null;
+            activeText = null;
+        });
+
+        function downloadPNG() { 
+            const dataURL = canvas.toDataURL({ format: 'png', quality: 1 }); 
+            const link = document.createElement('a'); 
+            link.href = dataURL;
+            link.download = 'design.png';
+            link.click(); 
+            
+        }
+
+        document.getElementById('fontSize').addEventListener('change', updateTextProperties);
+        document.getElementById('fontType').addEventListener('change', updateTextProperties);
+        document.getElementById('fontColor').addEventListener('change', updateTextProperties);
+    </script>
+</body>
+</html>
